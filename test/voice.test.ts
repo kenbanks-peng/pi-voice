@@ -50,8 +50,8 @@ test("speaks once only after settlement, using the final answer", async () => {
   assert.deepEqual(f.spoken, []);
   await f.emit("agent_settled");
   await f.emit("agent_settled");
-  assert.deepEqual(f.spoken, ["The work is complete. All tests passed."]);
-  assert.equal(f.summaries(), 1);
+  assert.deepEqual(f.spoken, ["Done."]);
+  assert.equal(f.summaries(), 0);
 });
 
 test("keeps detailed written results unchanged and summarizes them separately", async () => {
@@ -68,21 +68,32 @@ test("keeps detailed written results unchanged and summarizes them separately", 
   assert.equal(f.handlers.has("context"), false);
 });
 
-test("does not impose a word limit on spoken output or fallback text", async () => {
-  const text = "Detail ".repeat(100).trim();
-  const f = fixture({ failSummary: true });
-  f.message(text);
-  await f.emit("agent_settled");
-  assert.deepEqual(f.spoken, [text]);
+test("reads up to 45 spoken words directly and summarizes longer responses", async () => {
+  for (const words of [44, 45, 46]) {
+    const f = fixture();
+    const text = "Detail ".repeat(words).trim();
+    f.message(text);
+    await f.emit("agent_settled");
+    assert.deepEqual(f.spoken, [words <= 45 ? text : "The work is complete. All tests passed."]);
+    assert.equal(f.summaries(), words <= 45 ? 0 : 1);
+  }
+});
 
-  install(f.pi, {
-    platform: "darwin",
-    summarize: async () => text,
-    say: async (summary) => { f.spoken.push(summary); },
-  });
-  f.message("Written answer.");
+test("uses cleaned speech text to select direct reading", async () => {
+  const f = fixture({ failSummary: true });
+  f.message("**Done.** [Tests passed](https://example.com).\n```ts\n" + "code ".repeat(100) + "\n```");
   await f.emit("agent_settled");
-  assert.equal(f.spoken[1], text);
+  assert.deepEqual(f.spoken, ["Done. Tests passed. Code is available in the written response."]);
+  assert.equal(f.summaries(), 0);
+  assert.deepEqual(f.warnings, []);
+});
+
+test("does not request a summary or speak when cleaned text is empty", async () => {
+  const f = fixture();
+  f.message("https://example.com");
+  await f.emit("agent_settled");
+  assert.equal(f.summaries(), 0);
+  assert.deepEqual(f.spoken, []);
 });
 
 test("does not speak aborted, failed, empty, or tool-only responses", async () => {
@@ -124,11 +135,11 @@ test("clears stale responses on a new run or session shutdown", async () => {
   }
 });
 
-test("falls back to response text when the model fails", async () => {
+test("does not read a long response when its summary fails", async () => {
   const f = fixture({ failSummary: true });
-  f.message("**Done.** Tests passed.");
+  f.message("Detail ".repeat(46));
   await f.emit("agent_settled");
-  assert.deepEqual(f.spoken, ["Done. Tests passed."]);
+  assert.deepEqual(f.spoken, []);
   assert.equal(f.warnings.length, 1);
 });
 
@@ -153,7 +164,7 @@ test("new work and shutdown cancel summary generation without speech", async () 
       },
       say: async (text) => { f.spoken.push(text); },
     });
-    f.message("Done.");
+    f.message("Detail ".repeat(46));
     const settled = f.emit("agent_settled");
     f.emit(event);
     assert.equal(captured?.aborted, true);
@@ -191,6 +202,10 @@ test("model call contains only final answer data, not tools or history", async (
   assert.equal(request.context.messages[1].content, "Final result.");
   assert.equal(request.options.signal, signal);
   assert.equal(request.context.tools, undefined);
+});
+
+test("rejects summary requests without a model", async () => {
+  await assert.rejects(summarize("Detail ".repeat(46), fixture().ctx, new AbortController().signal), /No model/);
 });
 
 test("rejects empty and failed model summaries", async () => {

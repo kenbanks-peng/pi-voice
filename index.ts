@@ -2,6 +2,8 @@ import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
+const DIRECT_SPEECH_WORD_LIMIT = 45;
+
 export function speechText(text: string): string {
   return text
     .replace(/```[\s\S]*?```/g, " Code is available in the written response. ")
@@ -16,7 +18,7 @@ export function speechText(text: string): string {
 }
 
 export async function summarize(text: string, ctx: ExtensionContext, signal: AbortSignal): Promise<string> {
-  if (!ctx.model) return speechText(text);
+  if (!ctx.model) throw new Error("No model is available for the voice summary");
   const stream = ctx.modelRegistry.streamSimple(ctx.model, {
     messages: [
       {
@@ -93,16 +95,19 @@ export function install(pi: ExtensionAPI, deps: Dependencies): void {
     const controller = new AbortController();
     operation = controller;
     try {
-      let summary: string;
-      try {
-        summary = await deps.summarize(text, ctx, controller.signal);
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        if (ctx.hasUI) ctx.ui.notify("Voice summary failed.", "warning");
-        return;
+      let spoken = speechText(text);
+      if (!spoken) return;
+      if (spoken.split(/\s+/).length > DIRECT_SPEECH_WORD_LIMIT) {
+        try {
+          spoken = await deps.summarize(text, ctx, controller.signal);
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          if (ctx.hasUI) ctx.ui.notify("Voice summary failed.", "warning");
+          return;
+        }
       }
-      if (!summary || controller.signal.aborted || !ctx.isIdle() || ctx.hasPendingMessages()) return;
-      await deps.say(summary, controller.signal);
+      if (!spoken || controller.signal.aborted || !ctx.isIdle() || ctx.hasPendingMessages()) return;
+      await deps.say(spoken, controller.signal);
     } catch (error) {
       if (!controller.signal.aborted && ctx.hasUI) {
         ctx.ui.notify(`Voice output failed: ${error instanceof Error ? error.message : String(error)}`, "warning");
