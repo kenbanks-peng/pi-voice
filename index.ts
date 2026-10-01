@@ -98,8 +98,8 @@ export function install(pi: ExtensionAPI, deps: Dependencies): void {
         summary = await deps.summarize(text, ctx, controller.signal);
       } catch (error) {
         if (controller.signal.aborted) return;
-        if (ctx.hasUI) ctx.ui.notify("Voice summary failed. Reading the response instead.", "warning");
-        summary = speechText(text);
+        if (ctx.hasUI) ctx.ui.notify("Voice summary failed.", "warning");
+        return;
       }
       if (!summary || controller.signal.aborted || !ctx.isIdle() || ctx.hasPendingMessages()) return;
       await deps.say(summary, controller.signal);

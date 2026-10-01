@@ -16,7 +16,7 @@ Or load the extension for one session:
 pi --extension ./index.ts
 ```
 
-The extension uses the current model for one extra summary request. This has model cost and sends the final answer to that provider. It does not send tool output or thinking text. `prompt.md` guides the spoken summary. The code does not enforce a word limit. If the summary request fails, it reads the final answer instead.
+The extension uses the current model for one extra summary request. This has model cost and sends the final answer to that provider. It does not send tool output or thinking text. `prompt.md` guides the spoken summary. The code does not enforce a word limit. If the summary request fails, it does not speak the response.
 
 Requires macOS and `/usr/bin/say`. Uses the default system voice. Speech is also enabled in non-interactive modes. A new agent run or session shutdown cancels speech. Aborted runs and empty answers produce no speech.
 
