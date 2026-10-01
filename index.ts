@@ -10,6 +10,8 @@ export function speechText(text: string): string {
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/https?:\/\/\S+/g, "")
+    // Remove list markers so speech does not announce digits or punctuation.
+    .replace(/^\s*(?:[-+*]|\d+[.)])\s+/gm, "")
     .replace(/[`*_#>]/g, "")
     .replace(/[\u0000-\u001f\u007f]/g, " ")
     .trim()

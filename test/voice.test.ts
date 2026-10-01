@@ -68,14 +68,14 @@ test("keeps detailed written results unchanged and summarizes them separately", 
   assert.equal(f.handlers.has("context"), false);
 });
 
-test("reads up to 45 spoken words directly and summarizes longer responses", async () => {
-  for (const words of [44, 45, 46]) {
+test("reads up to 200 spoken words directly and summarizes longer responses", async () => {
+  for (const words of [199, 200, 201]) {
     const f = fixture();
     const text = "Detail ".repeat(words).trim();
     f.message(text);
     await f.emit("agent_settled");
-    assert.deepEqual(f.spoken, [words <= 45 ? text : "The work is complete. All tests passed."]);
-    assert.equal(f.summaries(), words <= 45 ? 0 : 1);
+    assert.deepEqual(f.spoken, [words <= 200 ? text : "The work is complete. All tests passed."]);
+    assert.equal(f.summaries(), words <= 200 ? 0 : 1);
   }
 });
 
@@ -137,7 +137,7 @@ test("clears stale responses on a new run or session shutdown", async () => {
 
 test("does not read a long response when its summary fails", async () => {
   const f = fixture({ failSummary: true });
-  f.message("Detail ".repeat(46));
+  f.message("Detail ".repeat(201));
   await f.emit("agent_settled");
   assert.deepEqual(f.spoken, []);
   assert.equal(f.warnings.length, 1);
@@ -164,7 +164,7 @@ test("new work and shutdown cancel summary generation without speech", async () 
       },
       say: async (text) => { f.spoken.push(text); },
     });
-    f.message("Detail ".repeat(46));
+    f.message("Detail ".repeat(201));
     const settled = f.emit("agent_settled");
     f.emit(event);
     assert.equal(captured?.aborted, true);
@@ -176,6 +176,7 @@ test("new work and shutdown cancel summary generation without speech", async () 
 
 test("removes Markdown, URLs, and code without shortening written text", () => {
   assert.equal(speechText("# **Done** [tests](https://example.com) `passed`."), "Done tests passed.");
+  assert.equal(speechText("1. First item.\n2. Second item.\n- Third item."), "First item. Second item. Third item.");
   assert.doesNotMatch(speechText("Result.\n```sh\nrm -rf /\n```"), /rm -rf/);
   assert.equal(speechText("word ".repeat(100)).split(" ").length, 100);
   assert.equal(speechText(""), "");
