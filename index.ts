@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-const DIRECT_SPEECH_WORD_LIMIT = 45;
+const DIRECT_SPEECH_WORD_LIMIT = 200;
 
 export function speechText(text: string): string {
   return text
